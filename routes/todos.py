@@ -1,5 +1,6 @@
 # routes/todos.py
 from flask import Blueprint, jsonify, request, redirect, url_for
+from datetime import datetime
 
 # 建立 Blueprint
 # 建立一個名為 'todos' 的 Blueprint，並將這個 Blueprint 的名稱設置為 __name__
@@ -15,7 +16,8 @@ from models.data import todos
 # 這個路由將會處理用戶提交的 GET 請求，回傳 todos 列表
 @todos_bp.route("/todos", methods=["GET"])
 def get_todos():
-    return jsonify(todos), 200
+    response = {"status": 200, "data": {"todos": todos}}
+    return jsonify(response), 200
 
 
 # 這個路由將會處理用戶提交的 GET 請求，回傳指定的 todo 資料
@@ -23,8 +25,10 @@ def get_todos():
 def get_todo(id):
     todo = next((todo for todo in todos if todo["id"] == id), None)
     if todo is None:
-        return jsonify({"error": "Todo not found"}), 404
-    return jsonify(todo), 200
+        responese = {"status": 404, "error": "Todo not found"}
+        return jsonify(responese), 404
+    responese = {"status": 200, "data": {"todo": todo}}
+    return jsonify(responese), 200
 
 
 # 這個路由將會處理用戶提交的 POST 請求，並將新的 Todo 項目加入到 todos 列表
@@ -33,8 +37,11 @@ def post_todo():
     new_todo = request.get_json()
     new_id = max(todo["id"] for todo in todos) + 1 if todos else 1
     new_todo["id"] = new_id
+    new_todo["created_at"] = datetime.now().isoformat()
+    new_todo["updated_at"] = datetime.now().isoformat()
     todos.append(new_todo)
-    return jsonify(new_todo), 201
+    response = {"status": 200, "data": {"todo": new_todo}}
+    return jsonify(response), 200
 
 
 # 這個路由將處理 PATCH 請求，允許用戶更新指定的 Todo 項目
@@ -42,43 +49,44 @@ def post_todo():
 def patch_todo(id):
     todo = next((todo for todo in todos if todo["id"] == id), None)
     if todo is None:
-        return jsonify({"error": "Todo not found"}), 404
+        response = {"status": 404, "error": "Todo not found"}
+        return jsonify({"status": 404, "error": "Todo not found"}), 404
+
     data = request.get_json()
     todo.update({k: v for k, v in data.items() if k in todo})
-
-    # 更新 updated_at 時間戳
-    from datetime import datetime
-
     todo["updated_at"] = datetime.now().isoformat()
-    return jsonify(todo), 200
+
+    response = {"status": 200, "data": {"todo": todo}}
+    return jsonify(response), 200
 
 
 # 這個路由將處理 DELETE 請求，允許用戶刪除指定的 Todo 項目
 @todos_bp.route("/todos/<int:id>", methods=["DELETE"])
 def delete_todo(id):
     global todos
+    todo = next((todo for todo in todos if todo["id"] == id), None)
+    if todo is None:
+        response = {"status": 404, "error": "Todo not found"}
+        return jsonify(response), 404
+
     todos = [todo for todo in todos if todo["id"] != id]
-    return jsonify({"message": "Todo deleted"}), 200
+    response = {"status": 200, "data": {"todo": todo}}
+    return jsonify({"status": 200, "data": {"todo": todo}}), 200
 
 
 # 這個路由將處理 PATCH 請求，允許用戶變更指定的 Todo 項目的 is_completed 值
 @todos_bp.route("/todos/<int:id>/toggleTodoCompleted", methods=["PATCH"])
 def toggle_todo_completed(id):
-    # 根據 ID 查找對應的 todo
     todo = next((todo for todo in todos if todo["id"] == id), None)
-
-    # 如果沒有找到該 todo，返回 404 錯誤
     if todo is None:
-        return jsonify({"error": "Todo not found"}), 404
+        response = {"status": 404, "error": "Todo not found"}
+        return jsonify(response), 404
 
-    # 切換 is_completed 的值
     todo["is_completed"] = not todo["is_completed"]
-
-    # 更新 updated_at 時間戳
-    from datetime import datetime
-
     todo["updated_at"] = datetime.now().isoformat()
-    return jsonify(todo), 200
+
+    response = {"status": 200, "data": {"todo": todo}}
+    return jsonify(response), 200
 
 
 # 筆記
