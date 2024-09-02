@@ -1,5 +1,7 @@
 # 從 Flask 模組中導入了 Flask 類。Flask 是一個輕量級的 Python Web 框架
 from flask import Flask, jsonify, request, redirect, url_for
+from config.config import Config  # 載入配置
+from models import db  # 從 models/__init__.py 導入 db
 
 
 # 從 routes 資料夾中載入 todos 路由
@@ -8,7 +10,11 @@ from routes import todos_bp
 
 # 創建了一個 Flask 應用的實例, 並將其存儲在變數 app 中
 app = Flask(__name__)
+app.config.from_object(Config)  # 使用配置
 
+
+# 初始化資料庫: 即使 Flask 可以透過 SQLAlchemy 與資料庫溝通
+db.init_app(app)
 
 # 設計路由
 # 路由: 註冊 Blueprint

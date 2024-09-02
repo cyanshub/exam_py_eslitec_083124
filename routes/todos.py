@@ -1,6 +1,9 @@
 # routes/todos.py
-from flask import Blueprint, jsonify, request, redirect, url_for
+from flask import Blueprint, jsonify, request
 from datetime import datetime
+
+# 從 models/todo.py 載入 Todo Model
+from models.todo import Todo
 
 # 建立 Blueprint
 # 建立一個名為 'todos' 的 Blueprint，並將這個 Blueprint 的名稱設置為 __name__
@@ -16,8 +19,22 @@ from models.data import todos
 # 這個路由將會處理用戶提交的 GET 請求，回傳 todos 列表
 @todos_bp.route("/todos", methods=["GET"])
 def get_todos():
-    response = {"status": 200, "data": {"todos": todos}}
-    return jsonify(response), 200
+    try:
+        # 查詢資料庫中的所有 Todo 項目
+        todo_instances = Todo.query.all()
+
+        # 將每個 Todo 實例轉換為可序列化的字典
+        todos = [todo.to_dict() for todo in todo_instances]
+
+        response = {"status": 200, "data": {"todos": todos}}
+        return jsonify(response), 200
+
+    except Exception as e:
+        # 捕捉任何資料庫錯誤，並返回500
+        return (
+            jsonify({"status": 500, "error": "Database error", "message": str(e)}),
+            500,
+        )
 
 
 # 這個路由將會處理用戶提交的 GET 請求，回傳指定的 todo 資料
