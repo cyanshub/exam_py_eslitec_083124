@@ -150,35 +150,73 @@ def post_todo():
 # 這個路由將處理 PATCH 請求，允許用戶更新指定的 Todo 項目
 @todos_bp.route("/todos/<int:id>", methods=["PATCH"])
 def patch_todo(id):
-    todo = next((todo for todo in todos if todo["id"] == id), None)
-    if todo is None:
-        response = {"status": 404, "error": "Todo not found"}
-        return jsonify({"status": 404, "error": "Todo not found"}), 404
+    try:
+        todo_instance = Todo.query.filter_by(id=id).first()
 
-    # 獲取表單傳來要新增的資料
-    data = request.get_json()
+        # 如果找不到實例，返回 404
+        if todo_instance is None:
+            return jsonify({"status": 404, "error": "Todo not found"}), 404
 
-    # 定義需要驗證的屬性及其驗證規則
-    validation_rules = {
-        "name": lambda v: isinstance(v, str) and v.strip(),
-        "content": lambda v: isinstance(v, str) and v.strip(),
-        "time": lambda v: (isinstance(v, (int, float)) and v > 0),
-        "date": lambda v: isinstance(v, str) and v.strip(),
-        "creator": lambda v: isinstance(v, str) and v.strip(),
-    }
+        data = request.get_json()
 
-    # 驗證傳入的數據
-    for key, value in data.items():
-        if key in validation_rules:
-            if not validation_rules[key](value):
-                response = {"status": 422, "error": f"Invalid value for {key}"}
-                return jsonify(response), 422
+        # 將 time 和 date 先進行轉換
+        if "time" in data:
+            try:
+                data["time"] = float(data["time"])
+            except ValueError:
+                return (
+                    jsonify({"status": 422, "error": "Invalid value for time"}),
+                    422,
+                )
 
-    todo.update({k: v for k, v in data.items() if k in todo})
-    todo["updated_at"] = datetime.now().isoformat()
+        if "date" in data:
+            try:
+                data["date"] = datetime.strptime(data["date"], "%Y-%m-%d").date()
+            except ValueError:
+                return (
+                    jsonify(
+                        {
+                            "status": 422,
+                            "error": "Invalid date format, should be YYYY-MM-DD",
+                        }
+                    ),
+                    422,
+                )
 
-    response = {"status": 200, "data": {"todo": todo}}
-    return jsonify(response), 200
+        # 定義驗證規則
+        validation_rules = {
+            "name": lambda v: isinstance(v, str) and v.strip(),
+            "content": lambda v: isinstance(v, str) and v.strip(),
+            "time": lambda v: isinstance(v, float) and v > 0,
+            "date": lambda v: isinstance(v, date),
+            "creator": lambda v: isinstance(v, str) and v.strip(),
+            "remarks": lambda v: v is None or isinstance(v, str),
+            "location": lambda v: v is None or isinstance(v, str),
+        }
+
+        # 驗證並更新資料
+        for key, value in data.items():
+            if key in validation_rules:
+                if not validation_rules[key](value):
+                    return (
+                        jsonify({"status": 422, "error": f"Invalid value for {key}"}),
+                        422,
+                    )
+
+            setattr(todo_instance, key, value)
+
+        todo_instance.updated_at = datetime.now()
+        db.session.commit()
+
+        response = {"status": 200, "data": {"todo": todo_instance.to_dict()}}
+        return jsonify(response), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return (
+            jsonify({"status": 500, "error": "Database error", "message": str(e)}),
+            500,
+        )
 
 
 # 這個路由將處理 DELETE 請求，允許用戶刪除指定的 Todo 項目
