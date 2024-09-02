@@ -34,7 +34,36 @@ def get_todo(id):
 # 這個路由將會處理用戶提交的 POST 請求，並將新的 Todo 項目加入到 todos 列表
 @todos_bp.route("/todos", methods=["POST"])
 def post_todo():
+    # 獲取表單傳來要新增的資料
     new_todo = request.get_json()
+
+    # 驗證必填資料屬性值
+    required_fields = ["name", "content", "time", "date", "creator"]
+    for field in required_fields:
+        value = new_todo.get(field)
+        if field in ["name", "content", "date", "creator"]:
+            if not isinstance(value, str) or not value.strip():
+                response = {"status": 422, "error": f"The {field} is required!"}
+                return jsonify(response), 422
+        elif field == "time":
+            if value is None:
+                response = {"status": 422, "error": "The time is required!"}
+                return jsonify(response), 422
+            try:
+                parsed_time = float(value)
+                if parsed_time <= 0:
+                    response = {
+                        "status": 422,
+                        "error": "The expected time for the todo must be greater than 0!",
+                    }
+                    return jsonify(response), 422
+            except ValueError:
+                response = {
+                    "status": 422,
+                    "error": "The expected time must be a valid number!",
+                }
+                return jsonify(response), 422
+
     new_id = max(todo["id"] for todo in todos) + 1 if todos else 1
     new_todo["id"] = new_id
     new_todo["created_at"] = datetime.now().isoformat()
@@ -52,7 +81,25 @@ def patch_todo(id):
         response = {"status": 404, "error": "Todo not found"}
         return jsonify({"status": 404, "error": "Todo not found"}), 404
 
+    # 獲取表單傳來要新增的資料
     data = request.get_json()
+
+    # 定義需要驗證的屬性及其驗證規則
+    validation_rules = {
+        "name": lambda v: isinstance(v, str) and v.strip(),
+        "content": lambda v: isinstance(v, str) and v.strip(),
+        "time": lambda v: (isinstance(v, (int, float)) and v > 0),
+        "date": lambda v: isinstance(v, str) and v.strip(),
+        "creator": lambda v: isinstance(v, str) and v.strip(),
+    }
+
+    # 驗證傳入的數據
+    for key, value in data.items():
+        if key in validation_rules:
+            if not validation_rules[key](value):
+                response = {"status": 422, "error": f"Invalid value for {key}"}
+                return jsonify(response), 422
+
     todo.update({k: v for k, v in data.items() if k in todo})
     todo["updated_at"] = datetime.now().isoformat()
 
