@@ -247,16 +247,28 @@ def delete_todo(id):
 # 這個路由將處理 PATCH 請求，允許用戶變更指定的 Todo 項目的 is_completed 值
 @todos_bp.route("/todos/<int:id>/toggleTodoCompleted", methods=["PATCH"])
 def toggle_todo_completed(id):
-    todo = next((todo for todo in todos if todo["id"] == id), None)
-    if todo is None:
-        response = {"status": 404, "error": "Todo not found"}
-        return jsonify(response), 404
+    try:
+        todo_instance = Todo.query.filter_by(id=id).first()
 
-    todo["is_completed"] = not todo["is_completed"]
-    todo["updated_at"] = datetime.now().isoformat()
+        # 如果找不到實例，返回 404
+        if todo_instance is None:
+            return jsonify({"status": 404, "error": "Todo not found"}), 404
 
-    response = {"status": 200, "data": {"todo": todo}}
-    return jsonify(response), 200
+        # 切換 is_completed 狀態
+        todo_instance.is_completed = not todo_instance.is_completed
+        todo_instance.updated_at = datetime.now()
+
+        db.session.commit()
+
+        response = {"status": 200, "data": {"todo": todo_instance.to_dict()}}
+        return jsonify(response), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return (
+            jsonify({"status": 500, "error": "Database error", "message": str(e)}),
+            500,
+        )
 
 
 # 筆記
