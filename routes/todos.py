@@ -40,12 +40,26 @@ def get_todos():
 # 這個路由將會處理用戶提交的 GET 請求，回傳指定的 todo 資料
 @todos_bp.route("/todos/<int:id>", methods=["GET"])
 def get_todo(id):
-    todo = next((todo for todo in todos if todo["id"] == id), None)
-    if todo is None:
-        responese = {"status": 404, "error": "Todo not found"}
-        return jsonify(responese), 404
-    responese = {"status": 200, "data": {"todo": todo}}
-    return jsonify(responese), 200
+    try:
+        # 查詢指定 id 的 Todo 項目
+        todo_instance = Todo.query.filter_by(id=id).first()
+
+        # 如果找不到實例，返回 404
+        if todo_instance is None:
+            return jsonify({"status": 404, "error": "Todo not found"}), 404
+
+        # 將 Todo 實例轉換為字典
+        todo = todo_instance.to_dict()
+
+        response = {"status": 200, "data": {"todo": todo}}
+        return jsonify(response), 200
+
+    except Exception as e:
+        # 捕捉任何資料庫錯誤，並返回 500
+        return (
+            jsonify({"status": 500, "error": "Database error", "message": str(e)}),
+            500,
+        )
 
 
 # 這個路由將會處理用戶提交的 POST 請求，並將新的 Todo 項目加入到 todos 列表
@@ -178,3 +192,10 @@ def toggle_todo_completed(id):
 # 1. global todos：這行代碼聲明 todos 為全局變數，確保在函數內對 todos 進行的操作會影響到全局範圍內的 todos 列表。如果不使用 global 關鍵字，函數內的 todos 會被當作局部變數，無法影響全局的 todos 列表。
 
 # 2. todos = [todo for todo in todos if todo["id"] != id]：這是一個列表推導式，用來生成一個新的列表，該列表只包含那些 ID 不等於 id 的 Todo 項目。
+
+
+# 在 Flask 中使用 SQLAlchemy 操作資料庫時，以下是一些常用操作的語法
+# 查詢指定資料：Todo.query.filter_by() 或 Todo.query.filter()。
+# 新增一筆資料：創建新實例並使用 db.session.add()。
+# 更新指定資料：查詢後修改屬性並使用 db.session.commit()。
+# 刪除指定資料：查詢後使用 db.session.delete()。
