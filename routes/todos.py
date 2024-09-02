@@ -1,6 +1,9 @@
 # routes/todos.py
 from flask import Blueprint, jsonify, request
-from datetime import datetime
+from datetime import datetime, date
+
+# 操作資料庫會話時會用到
+from models import db
 
 # 從 models/todo.py 載入 Todo Model
 from models.todo import Todo
@@ -65,43 +68,83 @@ def get_todo(id):
 # 這個路由將會處理用戶提交的 POST 請求，並將新的 Todo 項目加入到 todos 列表
 @todos_bp.route("/todos", methods=["POST"])
 def post_todo():
-    # 獲取表單傳來要新增的資料
-    new_todo = request.get_json()
+    try:
+        new_todo = request.get_json()
 
-    # 驗證必填資料屬性值
-    required_fields = ["name", "content", "time", "date", "creator"]
-    for field in required_fields:
-        value = new_todo.get(field)
-        if field in ["name", "content", "date", "creator"]:
-            if not isinstance(value, str) or not value.strip():
-                response = {"status": 422, "error": f"The {field} is required!"}
-                return jsonify(response), 422
-        elif field == "time":
-            if value is None:
-                response = {"status": 422, "error": "The time is required!"}
-                return jsonify(response), 422
+        # 將 time 和 date 先進行轉換
+        if "time" in new_todo:
             try:
-                parsed_time = float(value)
-                if parsed_time <= 0:
-                    response = {
-                        "status": 422,
-                        "error": "The expected time for the todo must be greater than 0!",
-                    }
-                    return jsonify(response), 422
+                new_todo["time"] = float(new_todo["time"])
             except ValueError:
-                response = {
-                    "status": 422,
-                    "error": "The expected time must be a valid number!",
-                }
-                return jsonify(response), 422
+                return (
+                    jsonify({"status": 422, "error": "Invalid value for time"}),
+                    422,
+                )
 
-    new_id = max(todo["id"] for todo in todos) + 1 if todos else 1
-    new_todo["id"] = new_id
-    new_todo["created_at"] = datetime.now().isoformat()
-    new_todo["updated_at"] = datetime.now().isoformat()
-    todos.append(new_todo)
-    response = {"status": 200, "data": {"todo": new_todo}}
-    return jsonify(response), 200
+        if "date" in new_todo:
+            try:
+                new_todo["date"] = datetime.strptime(
+                    new_todo["date"], "%Y-%m-%d"
+                ).date()
+            except ValueError:
+                return (
+                    jsonify(
+                        {
+                            "status": 422,
+                            "error": "Invalid date format, should be YYYY-MM-DD",
+                        }
+                    ),
+                    422,
+                )
+
+        # 定義需要驗證的屬性及其驗證規則
+        validation_rules = {
+            "name": lambda v: isinstance(v, str) and v.strip(),
+            "content": lambda v: isinstance(v, str) and v.strip(),
+            "time": lambda v: isinstance(v, float) and v > 0,
+            "date": lambda v: isinstance(v, date),
+            "creator": lambda v: isinstance(v, str) and v.strip(),
+            # 允許為空值
+            "remarks": lambda v: v is None or isinstance(v, str),
+            "location": lambda v: v is None or isinstance(v, str),
+        }
+
+        # 驗證並處理資料
+        for key, value in new_todo.items():
+            if key in validation_rules:
+                if not validation_rules[key](value):
+                    return (
+                        jsonify({"status": 422, "error": f"Invalid value for {key}"}),
+                        422,
+                    )
+
+        # 創建新的 Todo 實例
+        new_todo_instance = Todo(
+            name=new_todo["name"],
+            content=new_todo["content"],
+            remarks=new_todo.get("remarks", ""),
+            time=new_todo["time"],
+            date=new_todo["date"],
+            location=new_todo.get("location", ""),
+            creator=new_todo["creator"],
+            is_completed=new_todo.get("isCompleted", False),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        # 加入資料庫並提交
+        db.session.add(new_todo_instance)
+        db.session.commit()
+
+        response = {"status": 200, "data": {"todo": new_todo_instance.to_dict()}}
+        return jsonify(response), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return (
+            jsonify({"status": 500, "error": "Database error", "message": str(e)}),
+            500,
+        )
 
 
 # 這個路由將處理 PATCH 請求，允許用戶更新指定的 Todo 項目
