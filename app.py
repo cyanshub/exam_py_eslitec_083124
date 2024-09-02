@@ -1,9 +1,31 @@
 # 從 Flask 模組中導入了 Flask 類。Flask 是一個輕量級的 Python Web 框架
-from flask import Flask
+from flask import Flask, jsonify, request, redirect, url_for
+
+
+# 從 routes 資料夾中載入 todos 路由
+from routes import todos_bp
 
 
 # 創建了一個 Flask 應用的實例, 並將其存儲在變數 app 中
 app = Flask(__name__)
+
+
+# 設計路由
+# 路由: 註冊 Blueprint
+app.register_blueprint(todos_bp)  # 相當於 Express 中的 app.use()
+
+
+# 路由: 設計重導向
+@app.route("/")
+def index():
+    return redirect(url_for("todos.get_todos"))
+
+
+# 路由: 處理未匹配的路徑, 重導向到根路由
+@app.errorhandler(404)
+#  error 是 Flask 錯誤處理函數中的一個參數, 代表異常物件, 可以是其他合法的名稱
+def page_not_found(errpr):
+    return redirect(url_for("index"))
 
 
 # 這行是 Flask 的路由裝飾器，用來告訴 Flask 哪個 URL 應該觸發對應的函數
@@ -13,6 +35,7 @@ def hello():
     # 函數返回的內容
     return "Hello from flask"
 
+
 if __name__ == "__main__":
     print("app.py is being run directly")
     app.run(host="0.0.0.0", port=3000, debug=True)
@@ -21,7 +44,7 @@ else:
 
 
 # 專案筆記
-# 建立專案目錄
+# (1) 建立專案目錄
 # 建立虛擬環境：python -m venv .venv
 # 啟動虛擬環境  EX: .\.venv\Scripts\activate
 # 若要退出虛擬環境 EX: deactivate
@@ -38,3 +61,10 @@ else:
 # 將應用程式埠號改為 3000 只需修改 app.run() 中的 port 參數。
 # 可以直接在程式碼中, 利用 debug=True 啟用開發模式，如下所示
 # EX: app.run(host='0.0.0.0', port=3000, debug=True)
+
+
+# (2) 設計路由
+# 在 Blueprint 中定義了路由後，需要在主應用中「註冊」這個 Blueprint，以便將它的路由整合到主應用中。這就是 app.register_blueprint() 的作用
+# register_blueprint 相當於 Express 中的 app.use()
+
+# 在 Python 中，from routes.todos import todos_bp 是用來從 routes 資料夾中的 todos.py 文件中導入 todos_bp 這個 Blueprint 物件的語法; 與 JavaScript 中的 module.exports 是不同的概念，但它們都實現了將模塊或物件從一個文件導入到另一個文件中的功能
