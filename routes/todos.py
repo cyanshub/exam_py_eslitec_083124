@@ -14,8 +14,8 @@ from models.todo import Todo
 # 在這裡指定 url_prefix 為 "/api"，所有這個 Blueprint 中的路由都會自動帶有這個前綴
 todos_bp = Blueprint("todos", __name__, url_prefix="/api")
 
-# 假設有測試資料 todos dummy data
-from models.data import todos
+# # 假設有測試資料 todos dummy data => 因為使用 MySQL 的資料, 故註解掉
+# from models.data import todos
 
 
 # 可以像在 Flask 應用中定義路由一樣，在 Blueprint 中定義路由

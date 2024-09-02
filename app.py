@@ -1,5 +1,6 @@
 # 從 Flask 模組中導入了 Flask 類。Flask 是一個輕量級的 Python Web 框架
 from flask import Flask, jsonify, request, redirect, url_for
+from flask_cors import CORS
 from config.config import Config  # 載入配置
 from models import db  # 從 models/__init__.py 導入 db
 
@@ -10,6 +11,10 @@ from routes import todos_bp
 
 # 創建了一個 Flask 應用的實例, 並將其存儲在變數 app 中
 app = Flask(__name__)
+
+# 應對瀏覽器 CORS (Cross-Origin Resource Sharing) 政策
+CORS(app)  # 為所有路由啟用 CORS
+
 app.config.from_object(Config)  # 使用配置
 
 
@@ -25,6 +30,14 @@ app.register_blueprint(todos_bp)  # 相當於 Express 中的 app.use()
 @app.route("/")
 def index():
     return redirect(url_for("todos.get_todos"))
+
+
+# 路由: 捕捉所有異常並返回 response
+@app.errorhandler(Exception)
+def handle_exception(e):
+    response = jsonify({"error": str(e)})
+    response.status_code = 500
+    return response
 
 
 # 路由: 處理未匹配的路徑, 重導向到根路由
@@ -74,3 +87,5 @@ else:
 # register_blueprint 相當於 Express 中的 app.use()
 
 # 在 Python 中，from routes.todos import todos_bp 是用來從 routes 資料夾中的 todos.py 文件中導入 todos_bp 這個 Blueprint 物件的語法; 與 JavaScript 中的 module.exports 是不同的概念，但它們都實現了將模塊或物件從一個文件導入到另一個文件中的功能
+
+# CORS 設置：使用 CORS(app) 在全局啟用 CORS，這意味著所有的路由請求都會自動帶有 Access-Control-Allow-Origin 的 heaeder，解決跨域問題。
