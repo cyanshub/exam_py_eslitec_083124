@@ -56,7 +56,8 @@ def hello():
 
 
 if __name__ == "__main__":
-    print("app.py is being run directly")
+    port = 3000
+    print(f"Todo-list application is listening on http://localhost:{port}")
     app.run(host="0.0.0.0", port=3000, debug=True)
 else:
     print("app.py has been imported")
